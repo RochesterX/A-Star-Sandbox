@@ -341,7 +341,9 @@ enum Key {
 }
 
 struct Terminal {
+#if os(macOS) || os(Linux)
     nonisolated(unsafe) static var originalTerm = termios()
+#endif
 
     static func readKey() -> Key {
         var byte: UInt8 = 0
@@ -349,9 +351,9 @@ struct Terminal {
         let ch = _getch()
         if ch == 224 || ch == 0 {
             let nextCh = _getch()
-            switch nextch {
+            switch nextCh {
             case 72: return .Up
-            case 80: return .Dow
+            case 80: return .Down
             case 75: return .Left
             case 77: return .Right
             default: return .Unknown
