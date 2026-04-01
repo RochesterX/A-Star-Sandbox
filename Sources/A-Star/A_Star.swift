@@ -30,9 +30,10 @@ the grid.
 
 Controls:
 - Cursor movement: WASD, HJKL, or Arrow Keys
-- Wall placement: Space
-- Origin movement: [
-- Target movement: ]
+- Place wall: Space
+- Place start: [
+- Place goal: ]
+- Restrict valid movement options: number keys (directions based on number pad)
 
 """#)
         print("Enter the grid width: ", terminator: "")
@@ -71,6 +72,8 @@ Controls:
                 cursorPosition += Vector2(x: 0, y: 1)
             default:
                 switch key {
+                case .Quit:
+                    quit()
                 case .Start:
                     start = cursorPosition
                 case .Finish:
@@ -231,21 +234,21 @@ Controls:
 
         var output: String = ""
         output += draw["nw"] ?? "?"
-        output += String(repeating: draw["n"] ?? "?", count: on[0].count)
+        output += String(repeating: draw["n"] ?? "?", count: on[0].count + 2)
         output += draw["ne"] ?? "?"
         output += "\n"
 
         for y: Int in 0..<on.count {
-            output += draw["w"] ?? "?"
+            output += "\(draw["w"] ?? "?") "
             for x: Int in 0..<on[0].count {
                 output += cursorPosition == Vector2(x: x, y: y) ? "\u{1B}[7m" : "\u{1B}[27m"
                 let position: Vector2 = Vector2(x: x, y: y)
                 if position == path.first {
-                    output += draw["start"] ?? "?"
+                    output += "\(Color.Yellow)\(draw["start"] ?? "?")\(Color.Default)"
                     continue
                 }
                 if position == path.last {
-                    output += draw["goal"] ?? "?"
+                    output += "\(Color.Cyan)\(draw["goal"] ?? "?")\(Color.Default)"
                     continue
                 }
                 if path.contains(position) {
@@ -275,33 +278,41 @@ Controls:
                     default:
                         arrow = "?"
                     }
-                    output += arrow
+                    output += "\(Color.Green)\(arrow)\(Color.Default)"
                     continue
                 }
                 output += on[y][x] == 1 ? draw["wall"] ?? "?" : draw["empty"] ?? "?"
             }
             output += "\u{1B}[27m"
-            output += draw["e"] ?? "?"
+            output += " \(draw["e"] ?? "?")"
             output += "\n"
         }
 
         output += draw["sw"] ?? "?"
-        output += String(repeating: draw["s"] ?? "?", count: on[0].count)
+        output += String(repeating: draw["s"] ?? "?", count: on[0].count + 2)
         output += draw["se"] ?? "?"
 
         output += "\n\n"
 
+        output += draw["nw"] ?? "?"
+        output += String(repeating: draw["n"] ?? "?", count: 7)
+        output += draw["ne"] ?? "?"
+        output += "\n\(draw["w"] ?? "?")"
         output += directions[0] ? " ↖" : "  "
         output += directions[1] ? " ↑" : "  "
         output += directions[2] ? " ↗" : "  "
-        output += "\n"
+        output += " \(draw["e"] ?? "?") Path length: \(path.count <= 2 ? "\(Color.Red)Not found\(Color.Default)" : "\(Color.Green)\(String(path.count - 1))\(Color.Default)")\n\(draw["w"] ?? "?")"
         output += directions[3] ? " ←" : "  "
         output += "  "
         output += directions[4] ? " →" : "  "
-        output += "\n"
+        output += " \(draw["e"] ?? "?")\n\(draw["w"] ?? "?")"
         output += directions[5] ? " ↙" : "  "
         output += directions[6] ? " ↓" : "  "
         output += directions[7] ? " ↘" : "  "
+        output += " \(draw["e"] ?? "?") Press [Q] to quit\n"
+        output += draw["sw"] ?? "?"
+        output += String(repeating: draw["s"] ?? "?", count: 7)
+        output += draw["se"] ?? "?"
 
         print(draw["clear"] ?? "?", terminator: "")
         print(draw["home"] ?? "?", terminator: "")
@@ -337,6 +348,7 @@ enum Key {
     case SW
     case W
 
+    case Quit
     case Unknown
 }
 
@@ -421,6 +433,8 @@ struct Terminal {
             return .S
         case "3":
             return .SE
+        case "q":
+            return .Quit
         default:
             return .Unknown
         }
@@ -471,5 +485,17 @@ struct Vector2: Hashable {
         hasher.combine(x)
         hasher.combine(y)
     }
+}
+
+struct Color {
+    static let Black = "\u{1B}[90m"
+    static let Red = "\u{1B}[91m"
+    static let Green = "\u{1B}[92m"
+    static let Yellow = "\u{1B}[93m"
+    static let Blue = "\u{1B}[94m"
+    static let Magenta = "\u{1B}[95m"
+    static let Cyan = "\u{1B}[96m"
+    static let White = "\u{1B}[97m"
+    static let Default = "\u{1B}[39m"
 }
 
