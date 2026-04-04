@@ -1,3 +1,5 @@
+import Foundation
+
 #if os(macOS)
 import Darwin
 #elseif os(Linux)
@@ -10,36 +12,34 @@ import ucrt
 @main
 struct A_Star {
     static func main() {
-        print("\u{1B}[2J", terminator: "")
-        print("\u{1B}[H", terminator: "")
-        // From https://patorjk.com/software/taag
-        print(#"""
- $$$$$$\                  $$$$$$\                            $$\ $$\                           
-$$  __$$\  $$\$$\        $$  __$$\                           $$ |$$ |                          
-$$ /  $$ | \$$$  |       $$ /  \__| $$$$$$\  $$$$$$$\   $$$$$$$ |$$$$$$$\   $$$$$$\  $$\   $$\ 
-$$$$$$$$ |$$$$$$$\       \$$$$$$\   \____$$\ $$  __$$\ $$  __$$ |$$  __$$\ $$  __$$\ \$$\ $$  |
-$$  __$$ |\_$$$ __|       \____$$\  $$$$$$$ |$$ |  $$ |$$ /  $$ |$$ |  $$ |$$ /  $$ | \$$$$  / 
-$$ |  $$ | $$ $$\        $$\   $$ |$$  __$$ |$$ |  $$ |$$ |  $$ |$$ |  $$ |$$ |  $$ | $$  $$<  
-$$ |  $$ | \__\__|       \$$$$$$  |\$$$$$$$ |$$ |  $$ |\$$$$$$$ |$$$$$$$  |\$$$$$$  |$$  /\$$\ 
-\__|  \__|                \______/  \_______|\__|  \__| \_______|\_______/  \______/ \__/  \__|
+        var initfilePath = "-"
+        var noInteract = false
 
-Welcome to the A* Sandbox, an interactive terminal-based visualizer for the A* graph traversal
-algorithm. You can enter a width and height for the grid, then use the following controls to
-experiment with the algorithm. The optimal path will refresh every time you make a change to
-the grid.
+        if CommandLine.arguments.count == 2 {
+            initfilePath = CommandLine.arguments[1]
+        } else if CommandLine.arguments.count == 3 && CommandLine.arguments[2] == "--nointeract" {
+            initfilePath = CommandLine.arguments[1]
+            noInteract = true
+        } else if (CommandLine.arguments.count != 1) {
+            print("""
+Improper syntax.
 
-Controls:
-- Cursor movement: WASD, HJKL, or Arrow Keys
-- Place wall: Space
-- Place start: [
-- Place goal: ]
-- Restrict valid movement options: number keys (directions based on number pad)
+Usage:
+    binary-path [initfile-path [--nointeract]]
 
-"""#)
-        print("Enter the grid width: ", terminator: "")
-        let width: Int = Int(readLine() ?? "") ?? 16
-        print("Enter the grid height: ", terminator: "")
-        let height: Int = Int(readLine() ?? "") ?? 8
+Example:
+    ./A-Star Tests/Test1 --nointeract
+""")
+            return
+        }
+
+        var grid: [[Int]] = [[]]
+        var start: Vector2 = Vector2(x: -1, y: -1)
+        var goal: Vector2 = Vector2(x: -1, y: -1)
+
+        parseInitfile(initfilePath, grid: &grid, start: &start, goal: &goal)
+
+        // Hide cursor
         print("\u{1B}[?25l")
 
         Terminal.enableRawMode()
@@ -47,16 +47,26 @@ Controls:
         var cursorPosition = Vector2(x: 0, y: 0)
 
         defer {
-            quit()
+            quit(clear: !noInteract)
         }
-
-        var grid: [[Int]] = Array(repeating: Array(repeating: 0, count: width), count: height)
-        var start: Vector2 = Vector2(x: 0, y: 0)
-        var goal: Vector2 = Vector2(x: width - 1, y: 0)
 
         var aStar = A_Star()
 
         var path = aStar.pathfind(grid: grid, start: start, goal: goal)
+
+        if noInteract {
+            aStar.display(path, on: grid)
+
+            // If noInteract, print full path
+            print("\nFull path: ")
+            for vector in path {
+                let index = path.firstIndex(of: vector)!
+                print("(\(vector.x), \(vector.y))\(index != path.count - 1 ? (index % 5 == 4 ? " ⏎ " : " → ") : "")\(index % 5 == 4 ? "\n" : "")", terminator: "")
+            }
+            print()
+
+            quit(clear: false)
+        }
 
         while true {
             aStar.display(path, on: grid, cursorPosition: cursorPosition)
@@ -73,7 +83,7 @@ Controls:
             default:
                 switch key {
                 case .Quit:
-                    quit()
+                    quit(clear: true)
                 case .Start:
                     start = cursorPosition
                 case .Finish:
@@ -210,7 +220,7 @@ Controls:
         return tentativeLowest
     }
 
-    func display(_ path: [Vector2], on: [[Int]], cursorPosition: Vector2) {
+    func display(_ path: [Vector2], on: [[Int]], cursorPosition: Vector2 = Vector2(x: -1, y: -1)) {
         let draw: Dictionary<String, String> = [
             "nw": "┏",
             "ne": "┓",
@@ -317,6 +327,136 @@ Controls:
         print(draw["clear"] ?? "?", terminator: "")
         print(draw["home"] ?? "?", terminator: "")
         print(output)
+    }
+
+    static func parseInitfile(_ initfilePath: String, grid: inout [[Int]], start: inout Vector2, goal: inout Vector2) {
+        if initfilePath != "-" {
+            do {
+                let fileURL = URL(fileURLWithPath: initfilePath)
+                let text = try String(contentsOf: fileURL, encoding: .utf8)
+
+                var starts = 0
+                var goals = 0
+
+                grid = text.split(whereSeparator: \.isNewline).enumerated().map({ y, line in
+                    return line.enumerated().map({ x, char in 
+                        if char == "S" {
+                            starts += 1
+                            start = Vector2(x: x, y: y)
+                        }
+                        else if char == "F" {
+                            goals += 1
+                            goal = Vector2(x: x, y: y)
+                        }
+                        return char == "#" ? 1 : 0
+                    })
+                })
+
+                if starts == 0 {
+                    throw InitfileError.missingStart
+                } else if goals == 0 {
+                    throw InitfileError.missingGoal
+                }
+
+                if starts != 1 {
+                    throw InitfileError.multipleStarts
+                } else if goals != 1 {
+                    throw InitfileError.multipleGoals
+                }
+
+                if grid.count == 0 || grid[0].count == 0 { throw InitfileError.emptyFile }
+                for row in grid {
+                    if row.count != grid[0].count {
+                        throw InitfileError.unevenRowLengths
+                    }
+                }
+
+                return
+            } catch InitfileError.missingStart {
+                print("No start symbol \"S\" found in initfile.\nPress enter to continue...")
+                _ = readLine()
+            } catch InitfileError.missingGoal {
+                print("No goal symbol \"F\" found in initfile.\nPress enter to continue...")
+                _ = readLine()
+            } catch InitfileError.multipleStarts {
+                print("Multiple start symbols (\"S\") found in initfile.\nPress enter to continue...")
+                _ = readLine()
+            } catch InitfileError.multipleGoals {
+                print("Multiple goal symbols (\"F\") found in initfile.\nPress enter to continue...")
+                _ = readLine()
+            } catch InitfileError.emptyFile {
+                print("Initfile is empty.\nPress enter to continue...")
+                _ = readLine()
+            } catch InitfileError.unevenRowLengths {
+                print("Uneven row lengths in initfile.\nPress enter to continue...")
+                _ = readLine()
+            } catch {
+                print("Error processing initfile.\nPress enter to continue...")
+                _ = readLine()
+            }
+        }
+
+        // Clear screen and go home
+        print("\u{1B}[2J", terminator: "")
+        print("\u{1B}[H", terminator: "")
+
+        // From https://patorjk.com/software/taag
+        print(#"""
+ $$$$$$\                  $$$$$$\                            $$\ $$\                           
+$$  __$$\  $$\$$\        $$  __$$\                           $$ |$$ |                          
+$$ /  $$ | \$$$  |       $$ /  \__| $$$$$$\  $$$$$$$\   $$$$$$$ |$$$$$$$\   $$$$$$\  $$\   $$\ 
+$$$$$$$$ |$$$$$$$\       \$$$$$$\   \____$$\ $$  __$$\ $$  __$$ |$$  __$$\ $$  __$$\ \$$\ $$  |
+$$  __$$ |\_$$$ __|       \____$$\  $$$$$$$ |$$ |  $$ |$$ /  $$ |$$ |  $$ |$$ /  $$ | \$$$$  / 
+$$ |  $$ | $$ $$\        $$\   $$ |$$  __$$ |$$ |  $$ |$$ |  $$ |$$ |  $$ |$$ |  $$ | $$  $$<  
+$$ |  $$ | \__\__|       \$$$$$$  |\$$$$$$$ |$$ |  $$ |\$$$$$$$ |$$$$$$$  |\$$$$$$  |$$  /\$$\ 
+\__|  \__|                \______/  \_______|\__|  \__| \_______|\_______/  \______/ \__/  \__|
+
+Welcome to the A* Sandbox, an interactive terminal-based visualizer for the A* graph traversal
+algorithm. You can enter a width and height for the grid, then use the following controls to
+experiment with the algorithm. The optimal path will refresh every time you make a change to
+the grid.
+
+Controls:
+- Cursor movement: WASD, HJKL, or Arrow Keys
+- Place wall: Space
+- Place start: [
+- Place goal: ]
+- Restrict valid movement options: number keys (directions based on number pad)
+
+"""#)
+        print("Enter the grid width: ", terminator: "")
+        let width: Int = Int(readLine() ?? "") ?? 16
+        print("Enter the grid height: ", terminator: "")
+        let height: Int = Int(readLine() ?? "") ?? 8
+
+        grid = Array(repeating: Array(repeating: 0, count: width), count: height)
+        start = Vector2(x: 0, y: 0)
+        goal = Vector2(x: width - 1, y: 0)
+    }
+
+    static func noUI(_ path: String) {
+        do {
+            let fileURL = URL(fileURLWithPath: path)
+            let text = try String(contentsOf: fileURL, encoding: .utf8)
+
+            var start: Vector2 = Vector2(x: 0, y: 0)
+            var goal: Vector2 = Vector2(x: 0, y: 0)
+
+            let grid = text.split(whereSeparator: \.isNewline).enumerated().map({ y, line in
+                return line.enumerated().map({ x, char in 
+                    if char == "S" { start = Vector2(x: x, y: y) }
+                    else if char == "F" { goal = Vector2(x: x, y: y) }
+                    return char == "#" ? 1 : 0
+                })
+            })
+
+            let aStar = A_Star()
+
+            let path = aStar.pathfind(grid: grid, start: start, goal: goal)
+            aStar.display(path, on: grid)
+        } catch {
+            print("Error processing input file.")
+        }
     }
 
     static func clamp(_ value: Int, low: Int, high: Int) -> Int {
@@ -448,7 +588,7 @@ struct Terminal {
         rawTerm.c_lflag &= ~tcflag_t(ICANON | ECHO)
         tcsetattr(STDIN_FILENO, TCSANOW, &rawTerm)
 
-        signal(SIGINT, quit)
+        signal(SIGINT, quitHandler)
 #endif
     }
 
@@ -459,13 +599,21 @@ struct Terminal {
     }
 }
 
-func quit(_ signal: Int32 = 0) {
+func quitHandler(_ signal: Int32) {
+    quit(clear: true)
+}
+
+func quit(clear: Bool = true) {
     Terminal.disableRawMode()
+
     // Show cursor
-    print("Exit")
     print("\u{1B}[?25h", terminator: "")
-    print("\u{1B}[2J", terminator: "")
-    print("\u{1B}[H", terminator: "")
+
+    // Clear + return home
+    if clear {
+        print("\u{1B}[2J", terminator: "")
+        print("\u{1B}[H", terminator: "")
+    }
     exit(0)
 }
 
@@ -497,5 +645,14 @@ struct Color {
     static let Cyan = "\u{1B}[96m"
     static let White = "\u{1B}[97m"
     static let Default = "\u{1B}[39m"
+}
+
+enum InitfileError: Error {
+    case emptyFile
+    case missingStart
+    case missingGoal
+    case multipleStarts
+    case multipleGoals
+    case unevenRowLengths
 }
 
