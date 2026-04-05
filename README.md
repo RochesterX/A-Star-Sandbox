@@ -1,6 +1,5 @@
-### Project Title:  A* SANDBOX
-### Name:           Trevor Maze
-### OU Email:       trevormaze@oakland.edu
+# A* Sandbox
+By Trevor Maze ([trevormaze@oakland.edu](mailto:trevormaze@oakland.edu))
 
 ## Overview:
 A* Sandbox is an interactive visualization for the A* graph traversal algorithm, frequently used in video games for pathfinding. My implementation simplifies the arbitrary graph to a grid, where every node is connected to the eight around it (movement weights being equal to sqrt(2) for the diagonals and 1 for the cardinal directions).
@@ -10,7 +9,7 @@ A* Sandbox is written in Swift. To compile the code, [Swift must be installed](h
 
 If Swift cannot be installed, I have included binaries in the ``Binaries/`` folder that can be run via the terminal.
 
-> [!NOTE]  
+> [!WARNING]  
 > __Windows users:__ This project was developed on a Unix-based system. While support for Windows terminals has been tested, the experience is noticeably degraded. I recommend using a Linux or macOS system to run this project.
 
 ## Video: 
