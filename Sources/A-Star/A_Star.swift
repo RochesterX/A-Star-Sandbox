@@ -58,10 +58,14 @@ Example:
             aStar.display(path, on: grid)
 
             // If noInteract, print full path
-            print("\nFull path: ")
-            for vector in path {
-                let index = path.firstIndex(of: vector)!
-                print("(\(vector.x), \(vector.y))\(index != path.count - 1 ? (index % 5 == 4 ? " ⏎ " : " → ") : "")\(index % 5 == 4 ? "\n" : "")", terminator: "")
+            if path.count == 2 {
+                print("\n\(Color.Red)No non-trivial path found.\(Color.Default)")
+            } else {
+                print("\nFull path: ")
+                for vector in path {
+                    let index = path.firstIndex(of: vector)!
+                    print("(\(vector.x), \(vector.y))\(index != path.count - 1 ? (index % 5 == 4 ? " ⏎ " : " →  \t") : "")\(index % 5 == 4 ? "\n" : "")", terminator: "")
+                }
             }
             print()
 
@@ -125,21 +129,30 @@ Example:
 
     var directions: [Bool] = Array(repeating: true, count: 8)
 
+    // The main algorithm function
     func pathfind(grid: [[Int]], start: Vector2, goal: Vector2) -> [Vector2] {
+        // For keeping track of yet-unexplored relevant nodes
         var openSet: [Vector2] = [start]
 
+        // For keeping track of all the nodes previously traversed to reconstruct the optimal path
         var cameFrom: Dictionary<Vector2, Vector2> = [:]
         
+        // A map keeping track of the G-score (actual cost from start to a given node) for every node on the grid
         var gScore: Dictionary<Vector2, Float> = [:]
         gScore[start] = 0
 
+        // A map keeping track of the F-score (estimated cost from any given node to the goal, composed of the actual score from the start to the node and the estimated score from there to the goal) for every node on the grid
         var fScore: Dictionary<Vector2, Float> = [:]
         fScore[start] = h(current: start, goal: goal)
 
+        // Loop until all relevant nodes have been explored [O(width * height) worst-case]
         while openSet.count != 0 {
+            // Get the next relevant node with the lowest F-score (preditced total cost) [O(width * height) worst-case]
             var current: Vector2 = getLowest(openSet, map: fScore)
 
+            // If this node is the goal...
             if current == goal {
+                // ...reconstruct the path taken by going back through the nodes previously chosen and reversing, returning the resulting path
                 var totalPath: [Vector2] = [current]
                 while cameFrom.keys.contains(current) {
                     current = cameFrom[current]!
@@ -149,8 +162,10 @@ Example:
                 return totalPath
             }
 
+            // Otherwise, remove the current node from the set of unexplored nodes
             openSet.remove(at: openSet.firstIndex(of: current)!)
 
+            // Since A* technically works on graphs, not grids, we construct all the "edges" that need checking
             let neighbors: [Vector2] = [
                 Vector2(x: current.x - 1, y: current.y - 1),
                 Vector2(x: current.x, y: current.y - 1),
@@ -164,29 +179,32 @@ Example:
                 Vector2(x: current.x + 1, y: current.y + 1),
             ]
 
+            // Loop through each of these neighbors...
             for i: Int in 0..<neighbors.count {
-                // Enforce direction whitelist
+                // ...remove it if that direction is turned off...
                 if !directions[i] { 
                     continue
                 }
+                // ...ignore it if it's outside the bounds of the grid...
                 let neighbor: Vector2 = neighbors[i]
-                if neighbor.x >= grid[0].count ||
-                    neighbor.x < 0 ||
-                    neighbor.y >= grid.count ||
-                    neighbor.y < 0 {
-                        continue
-                    }
+                if neighbor.x >= grid[0].count || neighbor.x < 0 || neighbor.y >= grid.count || neighbor.y < 0 {
+                    continue
+                }
 
+                // ...disregard it if it's a wall (represented by a 1)...
                 if grid[neighbor.y][neighbor.x] == 1 {
                     continue
                 }
 
+                // ...and calculate it's G-score (true score it took to get to the current node, plus the actual weight of the edge from current to neighbor)
                 let tentative_gScore: Float = gScore[current]! + d(current: current, neighbor: neighbor)
 
+                // If this G-score sets a new record for this node (meaning it's on a lower scoring, more optimal path), update all the maps to reflect this discovery
                 if tentative_gScore < gScore[neighbor, default: Float.infinity] {
                     cameFrom[neighbor] = current
                     gScore[neighbor] = tentative_gScore
                     fScore[neighbor] = tentative_gScore + h(current: neighbor, goal: goal)
+                    // Worst-case O(width * height) lookup
                     if !openSet.contains(neighbor) {
                         openSet.append(neighbor)
                     }
@@ -194,15 +212,18 @@ Example:
             }
         }
 
+        // If the goal was never found, return a "path" with just the start and goal, which indicates to the rest of the program that a non-trivial path was not found
         return [start, goal]
     }
 
+    // The heuristic function (which has to NEVER overestimate the real cost, otherwise A* may traverse a nonoptimal path); here using octile distance, where the goal must be reached by traversing nodes and taking a diagonal path involves a cost of sqrt(2)
     func h(current: Vector2, goal: Vector2) -> Float {
         let x = Float(abs(current.x - goal.x))
         let y = Float(abs(current.y - goal.y))
         return abs(x - y) + 1.4142 * min(x, y)
     }
 
+    // The true weight of the edge from current to neighbor (just it's distance on the cartesian plane)
     func d(current: Vector2, neighbor: Vector2) -> Float {
         if current.x == neighbor.x || current.y == neighbor.y {
             return 1
@@ -210,6 +231,7 @@ Example:
         return 1.4142
     }
 
+    // A naive algorithm to get the node with the lowest value in the map [O(map.keys.count) worst-case]
     func getLowest(_ set: [Vector2], map: Dictionary<Vector2, Float>) -> Vector2 {
         var tentativeLowest = set[0]
         for item in set {
