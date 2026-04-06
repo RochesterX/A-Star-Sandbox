@@ -31,28 +31,28 @@ F-score[n] = G-score[n] + h(n)
 for any given node ``n``. The heuristic function, ``h(n)`` is the estimated cost it would take to reach the goal from node ``n``, but it notably __must not__ be an overestimate. If it were an overestimate, it could convinve A* to take a nonoptimal path. This property is known as being _admissible_. Notably, if ``h(n) = 0``, A* collapses to just be Dijkstra's algorithm.
 
 The core loop goes as follows (with worst-case time complexities for each component denoted [O(n)] for a graph ``G = { V, E }``):
--While unexplored nodes remain: [O(V)]
-    -Find the unexplored node with lowest F-score [O(V) using my naive implementation; could be O[1] with priority queue]
-    -If this node is the goal node:
-        -Reconstruct the path taken to arrive there
-        -Return the result
-    -Otherwise, remove it from the set of unexplored nodes
-    -For each of its neighboring nodes [O(E)]:
-        -Calculate its G-score
-        -If this G-score is the best (lowest) yet found:
-            -Mark that this neighbor comes after the initial node in the current best path
-            -Update the G-score for this neighbor
-            -Calculate and update the F-score for this neighbor
-            -If this neighbor hasn't yet been added to the unexplored nodes set, add it.
+- While unexplored nodes remain: [O(V)]
+    - Find the unexplored node with lowest F-score [O(V) using my naive implementation; could be O[1] with priority queue]
+    - If this node is the goal node:
+        - Reconstruct the path taken to arrive there
+        - Return the result
+    - Otherwise, remove it from the set of unexplored nodes
+    - For each of its neighboring nodes [O(E)]:
+        - Calculate its G-score
+        - If this G-score is the best (lowest) yet found:
+            - Mark that this neighbor comes after the initial node in the current best path
+            - Update the G-score for this neighbor
+            - Calculate and update the F-score for this neighbor
+            - If this neighbor hasn't yet been added to the unexplored nodes set, add it.
 
 This implementation (excluding the priority queue implementation) has a time complexity of ``O(V^2)`` due to its outer loop that can loop through each node and several searches through (possibly) all nodes that occur inside the loop.
 
 ## Testing
 Several test cases have been provided in the ``Tests/`` folder. Include one's path as an argument when running the program to initialize it with the provided grid. Optionally, include the ``--nointeract`` flag at the end to skip the simulation and print out the raw path taken. Test files must be plain text files with a grid of symbols. Valid symbols are as follows:
--``.``: Traversable node
--``#``: Blocked node
--``S``: Start symbol (one per file)
--``F``: Goal symbol (one per file)
+- ``.``: Traversable node
+- ``#``: Blocked node
+- ``S``: Start symbol (one per file)
+- ``F``: Goal symbol (one per file)
 
 For example:
 ```
