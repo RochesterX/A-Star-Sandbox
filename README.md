@@ -12,7 +12,8 @@ If Swift cannot be installed, I have included binaries in the ``Binaries/`` fold
 > [!WARNING]  
 > __Windows users:__ This project was developed on a Unix-based system. While support for Windows terminals has been tested, the experience is noticeably degraded. I recommend using a Linux or macOS system to run this project.
 
-### Video: 
+### Video:
+A recorded video demo and explanation of the project can be found [here](https://youtu.be/izqR65KvaEo). It's relatively long, but the "Implementation" section just includes a run-through of the source code.
 
 ### AI Usage Declaration:
 I used AI for assistance with implementing cross-platform terminal input. Everything related to "terminal raw mode" and the readKey() function were created based on AI-generated solutions, tailored for my project's needs.
